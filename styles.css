@@ -80,18 +80,27 @@ body {
     border-radius: 0;
     cursor: pointer;
     overflow: visible;
-    transition: all 0.2s ease;
+    transition: transform 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Mobile touch optimizations */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
-.sound-tile:hover {
-    transform: scale(1.08);
+/* Only apply hover effects on devices that support hover */
+@media (hover: hover) {
+    .sound-tile:hover {
+        transform: scale(1.08);
+    }
 }
 
-.sound-tile:active {
-    transform: scale(0.95);
+.sound-tile:active,
+.sound-tile.touch-active {
+    transform: scale(0.92);
 }
 
 .sound-tile.playing {
@@ -137,10 +146,12 @@ body {
     z-index: 10;
 }
 
-.sound-tile:hover .tile-label {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
+@media (hover: hover) {
+    .sound-tile:hover .tile-label {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 /* New Badge */
@@ -174,8 +185,10 @@ body {
     transition: all 0.2s ease;
 }
 
-.sound-tile:hover .play-icon {
-    opacity: 0.5;
+@media (hover: hover) {
+    .sound-tile:hover .play-icon {
+        opacity: 0.5;
+    }
 }
 
 .sound-tile.playing .play-icon {
@@ -218,10 +231,12 @@ body {
     border-top-color: var(--text-dark);
 }
 
-.sound-tile:hover .tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) translateY(0);
+@media (hover: hover) {
+    .sound-tile:hover .tooltip {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+    }
 }
 
 /* Footer */

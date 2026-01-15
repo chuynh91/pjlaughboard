@@ -58,6 +58,7 @@ function createSoundTile(sound) {
         img.className = 'tile-image';
         img.src = `images/${sound.image}`;
         img.alt = sound.title;
+        img.draggable = false; // Prevent image dragging on mobile
         if (sound.imageScale) {
             img.style.transform = `scale(${sound.imageScale})`;
         }
@@ -90,8 +91,35 @@ function createSoundTile(sound) {
     tile.appendChild(playIcon);
     tile.appendChild(label);
 
-    // Add click handler
-    tile.addEventListener('click', () => playSound(tile, audio));
+    // Touch event handlers for responsive mobile feedback
+    let touchStarted = false;
+
+    tile.addEventListener('touchstart', (e) => {
+        touchStarted = true;
+        tile.classList.add('touch-active');
+    }, { passive: true });
+
+    tile.addEventListener('touchend', (e) => {
+        tile.classList.remove('touch-active');
+        if (touchStarted) {
+            e.preventDefault();
+            playSound(tile, audio);
+        }
+        touchStarted = false;
+    });
+
+    tile.addEventListener('touchcancel', () => {
+        tile.classList.remove('touch-active');
+        touchStarted = false;
+    }, { passive: true });
+
+    // Click handler for non-touch devices
+    tile.addEventListener('click', (e) => {
+        // Only handle click if it wasn't a touch event
+        if (!touchStarted) {
+            playSound(tile, audio);
+        }
+    });
 
     // Handle audio end
     audio.addEventListener('ended', () => {
