@@ -28,6 +28,7 @@ const sounds = [
 const soundboard = document.getElementById('soundboard');
 let currentlyPlaying = null;
 let audioUnlocked = false;
+let isProcessingClick = false; // Debounce flag for rapid clicks
 
 // Initialize the soundboard
 function init() {
@@ -60,12 +61,22 @@ function createSoundTile(sound) {
         img.src = `images/${sound.image}`;
         img.alt = sound.title;
         img.draggable = false; // Prevent image dragging on mobile
+        img.loading = 'eager'; // Prioritize loading
+        img.decoding = 'sync'; // Decode synchronously to prevent flicker
+        // Set explicit dimensions to prevent layout collapse if image unloads
+        img.width = 145;
+        img.height = 145;
         if (sound.imageScale) {
             img.style.transform = `scale(${sound.imageScale})`;
         }
         if (sound.clipLeft) {
             img.style.clipPath = `inset(0 0 0 ${sound.clipLeft}px)`;
         }
+        // Handle image load errors
+        img.onerror = function() {
+            console.warn(`Failed to load image: ${sound.image}`);
+            this.style.display = 'none';
+        };
         tile.appendChild(img);
     }
 
@@ -128,21 +139,51 @@ function createSoundTile(sound) {
         currentlyPlaying = null;
     });
 
+    // Handle audio errors
+    audio.addEventListener('error', (e) => {
+        console.error('Audio error:', e);
+        tile.classList.remove('playing');
+        if (currentlyPlaying === audio) {
+            currentlyPlaying = null;
+        }
+    });
+
+    // Handle stalled/waiting states
+    audio.addEventListener('stalled', () => {
+        console.warn('Audio stalled, attempting to recover');
+    });
+
     return tile;
 }
 
 // Play a sound
 function playSound(tile, audio) {
+    // Debounce rapid clicks
+    if (isProcessingClick) {
+        return;
+    }
+    isProcessingClick = true;
+    setTimeout(() => { isProcessingClick = false; }, 100);
+
     // Stop any currently playing sound
     if (currentlyPlaying && currentlyPlaying !== audio) {
-        currentlyPlaying.pause();
-        currentlyPlaying.currentTime = 0;
+        try {
+            currentlyPlaying.pause();
+            currentlyPlaying.currentTime = 0;
+        } catch (e) {
+            console.warn('Error stopping previous audio:', e);
+        }
         document.querySelector('.sound-tile.playing')?.classList.remove('playing');
     }
 
     // Toggle play/pause for the clicked sound
     if (audio.paused) {
-        audio.currentTime = 0;
+        try {
+            audio.currentTime = 0;
+        } catch (e) {
+            // Some browsers throw if audio isn't loaded yet
+            console.warn('Could not reset audio time:', e);
+        }
 
         // Attempt to play, with retry logic for mobile browsers
         const attemptPlay = (isRetry = false) => {
@@ -161,6 +202,10 @@ function playSound(tile, audio) {
                 // If this is the first attempt and it failed, try reloading and playing again
                 if (!isRetry && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
                     attemptPlay(true);
+                } else {
+                    // Reset state on failure
+                    tile.classList.remove('playing');
+                    currentlyPlaying = null;
                 }
             });
         };
@@ -168,8 +213,12 @@ function playSound(tile, audio) {
         attemptPlay();
 
     } else {
-        audio.pause();
-        audio.currentTime = 0;
+        try {
+            audio.pause();
+            audio.currentTime = 0;
+        } catch (e) {
+            console.warn('Error pausing audio:', e);
+        }
         tile.classList.remove('playing');
         currentlyPlaying = null;
     }
@@ -210,6 +259,41 @@ document.addEventListener('visibilitychange', () => {
         audioUnlocked = false;
 
         // Stop any currently playing audio that may have been interrupted
+        if (currentlyPlaying) {
+            currentlyPlaying.pause();
+            currentlyPlaying.currentTime = 0;
+            document.querySelector('.sound-tile.playing')?.classList.remove('playing');
+            currentlyPlaying = null;
+        }
+
+        // Re-verify all images are loaded (mobile browsers may unload them when backgrounded)
+        reloadUnloadedImages();
+    }
+});
+
+// Reload any images that were unloaded while page was backgrounded
+function reloadUnloadedImages() {
+    const images = document.querySelectorAll('.tile-image');
+    images.forEach(img => {
+        // Check if image was unloaded (naturalWidth will be 0)
+        if (img.naturalWidth === 0 || !img.complete) {
+            // Force reload by resetting src
+            const src = img.src;
+            img.src = '';
+            img.src = src;
+        }
+    });
+}
+
+// Handle pageshow event (fired when page is restored from bfcache)
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+        // Page was restored from bfcache
+        console.log('Page restored from bfcache, reloading images');
+        reloadUnloadedImages();
+
+        // Reset audio state
+        audioUnlocked = false;
         if (currentlyPlaying) {
             currentlyPlaying.pause();
             currentlyPlaying.currentTime = 0;
