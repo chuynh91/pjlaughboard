@@ -27,6 +27,7 @@ const sounds = [
 // DOM Elements
 const soundboard = document.getElementById('soundboard');
 let currentlyPlaying = null;
+let audioUnlocked = false;
 
 // Initialize the soundboard
 function init() {
@@ -142,12 +143,30 @@ function playSound(tile, audio) {
     // Toggle play/pause for the clicked sound
     if (audio.paused) {
         audio.currentTime = 0;
-        audio.play().catch(err => {
-            console.error('Error playing audio:', err);
-            alert('Could not play audio. Make sure the audio file exists in the audio/ folder.');
-        });
-        tile.classList.add('playing');
-        currentlyPlaying = audio;
+
+        // Attempt to play, with retry logic for mobile browsers
+        const attemptPlay = (isRetry = false) => {
+            // On retry, reload the audio to reset its state
+            if (isRetry) {
+                audio.load();
+            }
+
+            audio.play().then(() => {
+                tile.classList.add('playing');
+                currentlyPlaying = audio;
+                audioUnlocked = true;
+            }).catch(err => {
+                console.error('Error playing audio:', err);
+
+                // If this is the first attempt and it failed, try reloading and playing again
+                if (!isRetry && (err.name === 'NotAllowedError' || err.name === 'AbortError')) {
+                    attemptPlay(true);
+                }
+            });
+        };
+
+        attemptPlay();
+
     } else {
         audio.pause();
         audio.currentTime = 0;
@@ -174,6 +193,23 @@ function showEmptyState() {
 document.addEventListener('keydown', (e) => {
     if (e.code === 'Space' && e.target === document.body) {
         e.preventDefault();
+        if (currentlyPlaying) {
+            currentlyPlaying.pause();
+            currentlyPlaying.currentTime = 0;
+            document.querySelector('.sound-tile.playing')?.classList.remove('playing');
+            currentlyPlaying = null;
+        }
+    }
+});
+
+// Handle page visibility change (when returning from background)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // Reset audio unlock state when page becomes visible again
+        // This helps with mobile browsers that suspend audio when backgrounded
+        audioUnlocked = false;
+
+        // Stop any currently playing audio that may have been interrupted
         if (currentlyPlaying) {
             currentlyPlaying.pause();
             currentlyPlaying.currentTime = 0;
