@@ -63,9 +63,6 @@ function createSoundTile(sound) {
         img.draggable = false; // Prevent image dragging on mobile
         img.loading = 'eager'; // Prioritize loading
         img.decoding = 'sync'; // Decode synchronously to prevent flicker
-        // Set explicit dimensions to prevent layout collapse if image unloads
-        img.width = 145;
-        img.height = 145;
         if (sound.imageScale) {
             img.style.transform = `scale(${sound.imageScale})`;
         }
