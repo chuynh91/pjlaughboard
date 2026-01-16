@@ -126,9 +126,6 @@ body {
             drop-shadow(-2px 0 0 white)
             drop-shadow(0 2px 0 white)
             drop-shadow(0 -2px 0 white);
-    /* Fallback background while loading */
-    background: linear-gradient(135deg, rgba(212, 96, 74, 0.1) 0%, rgba(154, 61, 43, 0.1) 100%);
-    border-radius: 8px;
 }
 
 /* Tile Label - hidden by default, shown on hover */
